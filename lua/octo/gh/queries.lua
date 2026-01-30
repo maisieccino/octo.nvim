@@ -111,6 +111,7 @@ query($owner: String!, $name: String!, $number: Int!, $endCursor: String) {
   ---@field state octo.PullRequestState
   ---@field title string
   ---@field body string
+  ---@field bodyHTML string
   ---@field createdAt string
   ---@field closedAt string
   ---@field updatedAt string
@@ -161,6 +162,7 @@ query($endCursor: String) {
       state
       title
       body
+      bodyHTML
       createdAt
       lastEditedAt
       includesCreatedEdit

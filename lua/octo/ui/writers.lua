@@ -32,8 +32,9 @@ end
 ---@param lines string[] | string lines to write
 ---@param line? integer starting line number
 ---@param mark? boolean whether to set extmark for the block
+---@param signedImageURLs? string[]
 ---@return integer? extmark_id
-function M.write_block(bufnr, lines, line, mark)
+function M.write_block(bufnr, lines, line, mark, signedImageURLs)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   line = line or vim.api.nvim_buf_line_count(bufnr) + 1
   mark = mark or false
@@ -44,6 +45,29 @@ function M.write_block(bufnr, lines, line, mark)
 
   -- write content lines
   vim.api.nvim_buf_set_lines(bufnr, line - 1, line - 1 + #lines, false, lines)
+
+  -- Add snacks images if enabled.
+  if
+    require("octo.config").values.picker == "snacks"
+    and signedImageURLs
+    and require("snacks").image.supports_terminal()
+  then
+    local img_number = 1
+    -- Find matching lines to attach images to.
+    for line_no = 1, #lines do
+      if lines[line_no]:find "user%-attachments" ~= nil then
+        Snacks.image.placement.new(bufnr, signedImageURLs[img_number], {
+          pos = { line_no + line - 1, 0 },
+          inline = true,
+          conceal = true,
+        })
+        if img_number > #signedImageURLs then
+          break
+        end
+        img_number = img_number + 1
+      end
+    end
+  end
 
   -- set extmarks
   if mark then
@@ -598,13 +622,23 @@ function M.write_state(bufnr, state, number)
   })
 end
 
+---@param html string
+---@return string[]
+local function parseImageURLs(html)
+  local results = {}
+  for res in html:gmatch [[https://private%-user%-images[^%\"]+]] do
+    results[#results + 1] = res
+  end
+  return results
+end
+
 ---@param bufnr integer
 ---@param body string
 ---@param line? integer
 ---@param viewer_can_update? boolean
 ---@param last_edited_at? string
 ---@param includes_created_edit? boolean
-function M.write_body_agnostic(bufnr, body, line, viewer_can_update, last_edited_at, includes_created_edit)
+function M.write_body_agnostic(bufnr, body, line, viewer_can_update, last_edited_at, includes_created_edit, html)
   body = utils.trim(body)
   if vim.startswith(body, constants.NO_BODY_MSG) or utils.is_blank(body) then
     body = " "
@@ -612,14 +646,19 @@ function M.write_body_agnostic(bufnr, body, line, viewer_can_update, last_edited
   local description = body:gsub("\r\n", "\n")
   local lines = vim.split(description, "\n", { plain = true })
   vim.list_extend(lines, { "" })
+
+  local signedImageURLs = {}
+  if html then
+    signedImageURLs = parseImageURLs(html)
+  end
   -- Resolve line before write_block so we can pass it to create_details_folds
   line = line or vim.api.nvim_buf_line_count(bufnr) + 1
   local desc_mark = M.write_block(bufnr, lines, line, true)
 
   -- Create folds for <details> blocks in the body (pcall to never abort rendering)
   pcall(folds.create_details_folds, bufnr, line, line + #lines - 1)
-
   local buffer = octo_buffers[bufnr]
+
   if buffer then
     buffer.bodyMetadata = BodyMetadata:new {
       savedBody = description,
@@ -629,6 +668,7 @@ function M.write_body_agnostic(bufnr, body, line, viewer_can_update, last_edited
       viewerCanUpdate = viewer_can_update,
       lastEditedAt = last_edited_at ~= vim.NIL and last_edited_at or nil,
       includesCreatedEdit = includes_created_edit ~= vim.NIL and includes_created_edit or nil,
+      signedImageURLs = signedImageURLs,
     }
   end
 end
@@ -637,7 +677,15 @@ end
 ---@param issue octo.Issue|octo.PullRequest|octo.Discussion
 ---@param line? integer
 function M.write_body(bufnr, issue, line)
-  M.write_body_agnostic(bufnr, issue.body, line, issue.viewerCanUpdate, issue.lastEditedAt, issue.includesCreatedEdit)
+  M.write_body_agnostic(
+    bufnr,
+    issue.body,
+    line,
+    issue.viewerCanUpdate,
+    issue.lastEditedAt,
+    issue.includesCreatedEdit,
+    issue.bodyHTML
+  )
 end
 
 ---@param bufnr integer

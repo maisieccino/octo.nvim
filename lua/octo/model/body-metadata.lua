@@ -12,6 +12,7 @@ local M = {}
 ---@field reactionLine? integer
 ---@field lastEditedAt? string
 ---@field includesCreatedEdit? boolean
+---@field signedImageURLs? table<string, string>
 local BodyMetadata = {}
 BodyMetadata.__index = BodyMetadata
 
@@ -30,6 +31,7 @@ function BodyMetadata:new(opts)
     reactionGroups = opts.reactionGroups or {},
     lastEditedAt = opts.lastEditedAt or nil,
     includesCreatedEdit = opts.includesCreatedEdit or nil,
+    signedImageURLs = opts.signedImageURLs or {},
   }
   setmetatable(this, self)
   return this
