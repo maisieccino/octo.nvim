@@ -6,7 +6,6 @@ local queries = require "octo.gh.queries"
 local utils = require "octo.utils"
 local octo_config = require "octo.config"
 local navigation = require "octo.navigation"
-local Async = require "snacks.picker.util.async"
 local Snacks = require "snacks"
 local notify = require "snacks.notify"
 local bubbles = require "octo.ui.bubbles"
@@ -1391,7 +1390,7 @@ function M.users(cb)
   ---@return fun(item: snacks.picker.Item)
   local finder_func = function(config, ctx)
     -- Don't search if no input
-    if config.users == "search" and ctx.filter.search == "" then
+    if ctx.picker.opts.live and ctx.filter.search == "" then
       return {}
     end
 
@@ -1403,7 +1402,7 @@ function M.users(cb)
       F = { prompt = ctx.filter.search }
     elseif cfg.users == "assignable" then
       query = queries.assignable_users
-      F = { owner = owner, name = name }
+      F = { owner = owner, name = name, prompt = ctx.filter.search }
     elseif cfg.users == "mentionable" then
       query = queries.mentionable_users
       F = { owner = owner, name = name }
@@ -1453,6 +1452,7 @@ function M.users(cb)
                       kind = "user",
                       pronouns = user.pronouns or "",
                       avatarUrl = user.avatarUrl or "",
+                      text = user.login,
                       ft = "markdown",
                     }
                   elseif user.teams and user.teams.totalCount > 0 then
@@ -1523,7 +1523,7 @@ function M.users(cb)
   Snacks.picker.pick {
     title = "Select users",
     limit = limit,
-    live = cfg.users == "search",
+    live = cfg.users == "search" or cfg.users == "assignable",
     show_empty = true,
     format = "text",
     layout = {

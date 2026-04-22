@@ -1122,9 +1122,9 @@ query($owner: String!, $name: String!, $endCursor: String) {
 ]]
 
   M.assignable_users = [[
-query($owner: String!, $name: String! $endCursor: String) {
+query($owner: String!, $name: String!, $prompt: String, $endCursor: String) {
   repository(owner: $owner, name: $name) {
-    assignableUsers(first: 100, after: $endCursor) {
+    assignableUsers(first: 100, after: $endCursor, query: $prompt) {
       pageInfo {
         endCursor
         hasNextPage
